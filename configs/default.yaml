@@ -1,0 +1,28 @@
+BASE:
+  exp_name: base
+  save_dir: ./results
+  multi_gpu: False 
+MODEL:
+  model_name: resnet18
+  pretrained: True 
+  self_distill: False 
+DATA:
+  dataset_dir: ../../Dataset/
+  dataset_name: MVtecAD 
+  class_name: all 
+  img_size: 224
+  batch_size: 128
+  mode: full
+TRAIN:
+  epochs: 50 
+  mixed_precision: fp16
+  wandb:
+    use: True
+    project_name: Be_own_teacher
+  seed: 42 
+  optimizer: Adam 
+  lr: 0.001
+  device: cuda
+  ddp: True 
+
+  

@@ -1,0 +1,5 @@
+'test_loss' : total_loss,
+                    'test_Accuracy' : test_acc,
+                    'test_Recall' : test_rec,
+                    'test_Precision' : test_pre,
+                    'test_F1' : test_f1,
