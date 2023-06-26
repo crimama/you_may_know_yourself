@@ -46,9 +46,11 @@ def main(cfg):
     #Load model 
     model = load_model(
                         model_name = cfg['MODEL']['model_name'],
+                        base_model = cfg['MODEL']['base_model'],
                         pretrained = cfg['MODEL']['pretrained'],
                         num_class  = len(trainset.l2i),
                         )
+    
     transform = model.get_model_transform()
     
     trainloader.dataset.get_model_transform(transform)
@@ -56,7 +58,7 @@ def main(cfg):
     # criterion 
     optimizer = __import__('torch.optim', fromlist='optim').__dict__[cfg['TRAIN']['optimizer']](model.parameters(), lr=cfg['TRAIN']['lr'])
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=cfg['TRAIN']['epochs'], T_mult=1, eta_min=0.00001)
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = model.get_criterion()
 
     accelerator = Accelerator(mixed_precision = 'fp16')
     
