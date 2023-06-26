@@ -73,6 +73,7 @@ class BeYourOwnTeacher(BaseModel):
         x = self.init_layer(x)
         
         x = self.block1(x)
+        x1 = x.detach()
         middle_output1 = self.bottleneck1_1(x)
         middle_output1 = self.avgpool1(middle_output1)
         middle1_fea = middle_output1
@@ -80,6 +81,7 @@ class BeYourOwnTeacher(BaseModel):
         middle_output1 = self.middle_fc2(middle_output1)
         
         x = self.block2(x)
+        x2 = x 
         middle_output2 = self.bottleneck2_1(x)
         middle_output2 = self.avgpool2(middle_output2)
         middle2_fea = middle_output2
@@ -87,6 +89,7 @@ class BeYourOwnTeacher(BaseModel):
         middle_output2 = self.middle_fc2(middle_output2)
         
         x = self.block3(x)
+        x3 = x.detach()
         middle_output3 = self.bottleneck3_1(x)
         middle_output3 = self.avgpool3(middle_output3)
         middle3_fea = middle_output3
@@ -94,8 +97,9 @@ class BeYourOwnTeacher(BaseModel):
         middle_output3 = self.middle_fc3(middle_output3)
         
         x = self.block4(x)
+        x4 = x.detach()
         x = self.avgpool(x)
-        final_fea = x 
+        middle4_fea = x 
         x = torch.flatten(x, 1)
         x = self.fc(x)
         
@@ -112,6 +116,7 @@ class BeYourOwnTeacher(BaseModel):
                 'middle_output2' : middle_output2,
                 'middle_output3' : middle_output3,
                 'output': x,
+                'middle_raw_fea': [x1,x2,x3,x4]
                 }
     
     def get_criterion(self):
@@ -124,7 +129,7 @@ class Criterion:
         self.temperature = temperature
         self.clf_criterion = nn.CrossEntropyLoss()
         self.alpha = alpha 
-        
+        self.beta  = beta 
         
     def feature_criterion(self,fea, target_fea):
         loss = (fea - target_fea)**2 * ((fea > 0) | (target_fea > 0)).float()
@@ -138,8 +143,6 @@ class Criterion:
         return loss_kd
     
     def __call__(self, target, preds: list):
-        [output, middle_output1, middle_output2, middle_output3, \
-        final_fea, middle1_fea, middle2_fea, middle3_fea] = preds
         middle1_fea    = preds['middle1_fea'] 
         middle2_fea    = preds['middle2_fea'] 
         middle3_fea    = preds['middle3_fea'] 
@@ -167,12 +170,12 @@ class Criterion:
         del teacher, middle_output1, middle_output2, middle_output3 
         
         # Feature distance Loss 
-        feature1_loss = self.feature_criterion(middle1_fea, final_fea.detach())
-        feature2_loss = self.feature_criterion(middle2_fea, final_fea.detach())
-        feature3_loss = self.feature_criterion(middle3_fea, final_fea.detach())
+        feature1_loss = self.feature_criterion(middle1_fea, middle4_fea.detach())
+        feature2_loss = self.feature_criterion(middle2_fea, middle4_fea.detach())
+        feature3_loss = self.feature_criterion(middle3_fea, middle4_fea.detach())
         
         # Total Loss 
-        total_loss = (1 - self.alpha) * (loss + middle1_loss + middle2_loss + middle3_loss) + \
+        total_loss = (1 - self.alpha) * (clf_loss + middle1_loss + middle2_loss + middle3_loss) + \
             self.alpha * (kd1_loss + kd2_loss + kd3_loss) + \
                 self.beta * (feature1_loss + feature2_loss + feature3_loss)
             
