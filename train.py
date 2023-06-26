@@ -19,7 +19,7 @@ def cal_metrics(preds,targets):
     f1 = f1_score(targets,preds,average='macro')
     return [acc,rec,pre,f1]
 
-def anomaly_detection_evaluation(testloader,model):
+def anomaly_detection_evaluation(testloader, model, base_model=True):
     target_ams = [] 
     pred_ams = [] 
     target_labels = []
@@ -29,8 +29,12 @@ def anomaly_detection_evaluation(testloader,model):
             # Inference 
             outputs = model(imgs)
             # Average along channel 
-            low_fea  = torch.mean(outputs['middle2_fea'], dim=1, keepdim=True)
-            high_fea = torch.mean(outputs['middle2_fea'], dim=1, keepdim=True)
+            if base_model:
+                low_fea  = torch.mean(outputs['middle2_fea'], dim=1, keepdim=True)
+                high_fea = torch.mean(outputs['middle4_fea'], dim=1, keepdim=True)
+            else:
+                low_fea  = torch.mean(outputs['middle_raw_fea'][1], dim=1, keepdim=True)
+                high_fea = torch.mean(outputs['middle_raw_fea'][3], dim=1, keepdim=True)
             # Interpolatino to target size 
             low_fea  = F.interpolate(low_fea, size=224, mode='bilinear', align_corners=True)
             high_fea = F.interpolate(high_fea, size=224, mode='bilinear', align_corners=True)
@@ -58,6 +62,8 @@ def anomaly_detection_evaluation(testloader,model):
     pixel_auroc = roc_auc_score(target_ams.flatten(),pred_ams.flatten())
     img_auroc = roc_auc_score(target_labels.flatten(),pred_labels.flatten())
     return img_auroc, pixel_auroc 
+
+
 
 def train(trainloader, model, criterion, accelerator, optimizer, cfg):
     total_preds = [] 
@@ -137,7 +143,8 @@ def fit(model,
         [test_acc,test_rec,test_pre,test_f1] = cal_metrics(test_preds, test_targets)
         
         # Anomaly Evaluation 
-        img_auroc, pixel_auroc = anomaly_detection_evaluation(testloader,model)
+        base_model = False if cfg['MODEL']['model_name'] == 'BeYourOwnTeacher' else True 
+        img_auroc, pixel_auroc = anomaly_detection_evaluation(testloader,model, base_model)
         
         
         if cfg.BASE.multi_gpu:
