@@ -36,4 +36,22 @@ class BaseModel(nn.Module):
         x = self.init_layer(x)
         x1,x2,x3,x4 = self.forward_block(x)
         x = self.head(x4)
-        return x,(x1,x2,x3,x4) 
+        return {
+                'middle1_fea': x1,
+                'middle2_fea': x2,
+                'middle3_fea': x3,
+                'middle4_fea': x4,
+                'output': x
+                }
+    
+    def get_criterion(self):
+        return Criterion()
+    
+    
+class Criterion:
+    def __init__(self):
+        self.criterion = nn.CrossEntropyLoss() 
+        
+    def __call__(self, labels, outputs):        
+        loss = self.criterion(outputs['output'], labels)
+        return loss 
