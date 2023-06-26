@@ -3,7 +3,8 @@ BASE:
   save_dir: ./results
   multi_gpu: False 
 MODEL:
-  model_name: resnet18
+  model_name: BaseModel 
+  base_model: resnet18
   pretrained: True 
   self_distill: False 
 DATA:
