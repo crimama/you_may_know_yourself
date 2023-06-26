@@ -27,18 +27,18 @@ def anomaly_detection_evaluation(testloader,model):
     for i, (imgs, gts, labels, anomaly_labels) in enumerate(testloader):
         with torch.no_grad():
             # Inference 
-            outputs,(x1,x2,x3,x4) = model(imgs)
+            outputs = model(imgs)
             # Average along channel 
-            x2 = torch.mean(x2,dim=1,keepdim=True)
-            x4 = torch.mean(x4,dim=1,keepdim=True)
+            low_fea  = torch.mean(outputs['middle2_fea'], dim=1, keepdim=True)
+            high_fea = torch.mean(outputs['middle2_fea'], dim=1, keepdim=True)
             # Interpolatino to target size 
-            x2 = F.interpolate(x2, size=224, mode='bilinear', align_corners=True)
-            x4 = F.interpolate(x4, size=224, mode='bilinear', align_corners=True)
+            low_fea  = F.interpolate(low_fea, size=224, mode='bilinear', align_corners=True)
+            high_fea = F.interpolate(high_fea, size=224, mode='bilinear', align_corners=True)
             # Normalize 
-            x2 = torch.concat([(x - torch.min(x)) / (torch.max(x) - torch.min(x)) for x in x2])
-            x4 = torch.concat([(x - torch.min(x)) / (torch.max(x) - torch.min(x)) for x in x4])
+            low_fea = torch.concat([(x - torch.min(x)) / (torch.max(x) - torch.min(x)) for x in low_fea])
+            high_fea = torch.concat([(x - torch.min(x)) / (torch.max(x) - torch.min(x)) for x in high_fea])
             # Calculate Anomaly Score 
-            anomaly_map = torch.pow((x4 - x2),2)
+            anomaly_map = torch.pow((high_fea - low_fea),2)
             anomaly_map = torch.unsqueeze(anomaly_map,dim=1)
             # Anomaly map flatten keeping batch 
             pred_am = anomaly_map.flatten(1)
@@ -67,15 +67,15 @@ def train(trainloader, model, criterion, accelerator, optimizer, cfg):
     for i, (imgs,labels) in enumerate(trainloader):
         
         #predict 
-        outputs,_ = model(imgs)
-        loss = criterion(outputs,labels) 
+        outputs = model(imgs)
+        loss = criterion(labels, outputs) 
         accelerator.backward(loss)
         
         #loss update 
         optimizer.step()
         optimizer.zero_grad()
         
-        total_preds.extend(outputs.argmax(dim=1).detach().cpu().numpy())
+        total_preds.extend(outputs['output'].argmax(dim=1).detach().cpu().numpy())
         total_targets.extend(labels.detach().cpu().numpy())
         total_loss.append(loss.detach().cpu().numpy())
         
@@ -95,10 +95,10 @@ def test(testloader,model,criterion):
     model.eval() 
     for i, (imgs, gts, labels, anomaly_labels) in enumerate(testloader):
         with torch.no_grad():
-            outputs,(x1,x2,x3,x4) = model(imgs)
-            loss = criterion(outputs,labels)
+            outputs = model(imgs)
+            loss = criterion(labels, outputs)
             
-            test_preds.extend(outputs.argmax(dim=1).detach().cpu().numpy())
+            test_preds.extend(outputs['output'].argmax(dim=1).detach().cpu().numpy())
             test_targets.extend(labels.detach().cpu().numpy())
             test_loss.append(loss.detach().cpu().numpy())
             
